@@ -60,10 +60,25 @@ export default function Dashboard() {
   };
 
   const [testInput, setTestInput] = useState("");
+  const [testChatId, setTestChatId] = useState("");
   const [isTesting, setIsTesting] = useState(false);
+
+  // 从本地存储加载上次使用的 Chat ID
+  useEffect(() => {
+    const saved = localStorage.getItem("testChatId");
+    if (saved) setTestChatId(saved);
+  }, []);
 
   const handleTestAPI = async () => {
     if (!testInput.trim()) return;
+    if (!testChatId.trim()) {
+      alert("请填写您的 Telegram Chat ID (需与白名单一致)");
+      return;
+    }
+    
+    // 保存使用的 Chat ID
+    localStorage.setItem("testChatId", testChatId);
+    
     setIsTesting(true);
     try {
       // 模拟一个发送给 Webhook 的 Update 数据结构
@@ -71,8 +86,8 @@ export default function Dashboard() {
         update_id: Math.floor(Math.random() * 100000),
         message: {
           message_id: Math.floor(Math.random() * 1000),
-          from: { id: 999, is_bot: false, first_name: "Tester" },
-          chat: { id: 0, first_name: "LocalTest", type: "private" }, // 请确保在 .env 填写真实的 chat.id 测试
+          from: { id: Number(testChatId), is_bot: false, first_name: "Tester" },
+          chat: { id: Number(testChatId), first_name: "LocalTest", type: "private" }, 
           date: Date.now(),
           text: testInput,
         },
@@ -140,6 +155,13 @@ export default function Dashboard() {
           🧪 接口联调实验室 (Test API)
         </h2>
         <div className="flex flex-col md:flex-row gap-3">
+          <input
+            type="text"
+            className="w-48 bg-black border border-neutral-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+            placeholder="填入您的 Chat ID"
+            value={testChatId}
+            onChange={(e) => setTestChatId(e.target.value)}
+          />
           <input
             type="text"
             className="flex-1 bg-black border border-neutral-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500 transition-colors"
