@@ -183,7 +183,13 @@ async function processMessage(
         console.log(`[处理] 子系统响应已生成`);
 
         // D. 更新结果
-        await editMessageText(chatId, messageId, replyText);
+        try {
+          await editMessageText(chatId, messageId, replyText);
+        } catch (e) {
+          console.warn(`[处理] ⚠️ 编辑消息失败，尝试发送新消息`);
+          // 如果编辑彻底失败，作为最后手段再直接发送一条新消息
+          await sendMessage(chatId, replyText);
+        }
         console.log(`[处理] ✅ 处理周期成功完成`);
       })(),
       timeoutPromise
@@ -205,7 +211,12 @@ async function processMessage(
     try {
       await editMessageText(chatId, messageId, errorMsg, inlineKeyboard);
     } catch (e) {
-      console.error("[处理] 发送错误通知失败:", e);
+      console.error("[处理] 发送错误通知失败, 尝试直接发送新消息:", e);
+      try {
+        await sendMessage(chatId, errorMsg, inlineKeyboard);
+      } catch (innerError) {
+        console.error("[处理] 彻底发送失败:", innerError);
+      }
     }
   }
 }

@@ -81,7 +81,16 @@ export async function editMessageText(
   });
 
   if (!response.ok) {
-    console.error(`[Telegram] ❌ 编辑消息失败 ${messageId}:`, await response.text());
+    const errorText = await response.text();
+    console.error(`[Telegram] ❌ 编辑消息失败 ${messageId}:`, errorText);
+    
+    // 如果编辑消息失败是因为消息未找到 (比如在前端模拟测试时，返回的占位消息 ID 可能是捏造的)
+    // 或者该消息已被用户删除，则尝试将内容作为一条新消息发送
+    if (errorText.includes("message to edit not found") || errorText.includes("message not found")) {
+      console.warn(`[Telegram] ⚠️ 找不到要编辑的消息 ${messageId}，将作为新消息发送给用户 ${chatId}`);
+      return sendMessage(chatId, text, replyMarkup);
+    }
+    
     throw new Error("Failed to edit message in Telegram");
   }
 
