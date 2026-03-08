@@ -8,7 +8,7 @@ import {
   getFileUrl,
 } from "../../../lib/telegram";
 import { detectIntent, transcribeAudio } from "../../../lib/ai";
-import { routeIntent } from "../../../lib/subsystems";
+import { buildIntentConfirmation, executeIntentFunction } from "../../../lib/subsystems";
 
 // 设置最大执行时间（秒），防止僵尸任务
 const MAX_EXECUTION_TIME = 55000; // Vercel 免费版通常 10s，Pro 版 60s，留 5s 缓冲
@@ -105,6 +105,26 @@ async function handleUpdate(update: TelegramUpdate) {
             !!originalVoice,
             originalVoice?.file_id
           );
+        } else if (data === "cancel" && message) {
+          console.log(`[回调] 用户取消操作`);
+          await editMessageText(message.chat.id, message.message_id, "🚫 操作已取消");
+        } else if (data && data.startsWith("exec_") && message) {
+          const intentType = data.replace("exec_", "");
+          console.log(`[回调] 触发执行意图: ${intentType}`);
+          
+          const botText = message.text || "";
+          const match = botText.match(/📌 提取内容：\n([\s\S]*?)(?:\n\n请(?:确认|选择)[\s\S]*|$)/);
+          const extractedInfo = match ? match[1].trim() : "无提取内容";
+
+          await editMessageText(message.chat.id, message.message_id, "⏳ 正在执行...");
+          
+          try {
+            const resultText = await executeIntentFunction(intentType, extractedInfo);
+            await editMessageText(message.chat.id, message.message_id, resultText);
+          } catch (e) {
+            console.error("[回调] 执行意图失败:", e);
+            await editMessageText(message.chat.id, message.message_id, "❌ 执行失败，请稍后重试。");
+          }
         }
       })()
     ]);
@@ -177,18 +197,18 @@ async function processMessage(
         const intentResult = await detectIntent(finalContent);
         console.log(`[处理] 识别到意图: ${intentResult.intent}`);
 
-        // C. 子系统路由
-        console.log(`[处理] 路由至子系统...`);
-        const replyText = await routeIntent(intentResult);
-        console.log(`[处理] 子系统响应已生成`);
+        // C. 子系统路由 (仅构建确认消息，不直接执行)
+        console.log(`[处理] 构建子系统确认消息...`);
+        const { text: replyText, replyMarkup } = buildIntentConfirmation(intentResult);
+        console.log(`[处理] 确认消息已生成`);
 
         // D. 更新结果
         try {
-          await editMessageText(chatId, messageId, replyText);
+          await editMessageText(chatId, messageId, replyText, replyMarkup);
         } catch (e) {
           console.warn(`[处理] ⚠️ 编辑消息失败，尝试发送新消息`);
           // 如果编辑彻底失败，作为最后手段再直接发送一条新消息
-          await sendMessage(chatId, replyText);
+          await sendMessage(chatId, replyText, replyMarkup);
         }
         console.log(`[处理] ✅ 处理周期成功完成`);
       })(),

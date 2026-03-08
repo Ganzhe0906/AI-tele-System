@@ -61,6 +61,7 @@ export async function detectIntent(text: string): Promise<IntentResult> {
   - diary: 个人日记记录，情绪复盘，每日总结。
   - knowledge: 知识库管理，如分析微信跨境群聊干货、提炼小红书/抖音爆款运营思路。
   - operations: TikTok 电商店铺运营，如多台手机群控调度、视频播放互动数据、达人建联管理、GMV Max 广告计划调整。
+  - unknown: 如果输入内容不属于以上任何一种，或无法确定其意图，请使用 unknown。不要强行归类。
 
   User Text: "${text}"
   `;
