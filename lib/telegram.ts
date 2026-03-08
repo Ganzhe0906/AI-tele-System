@@ -22,7 +22,10 @@ export async function sendMessage(
   }
   
   if (replyToMessageId) {
+    // 兼容 Telegram Bot API 的不同版本
+    // 新版本使用 reply_parameters，旧版本使用 reply_to_message_id
     body.reply_parameters = { message_id: replyToMessageId };
+    body.reply_to_message_id = replyToMessageId;
   }
 
   const response = await fetch(url, {
@@ -32,7 +35,16 @@ export async function sendMessage(
   });
 
   if (!response.ok) {
-    console.error(`[Telegram] ❌ 消息发送失败 ${chatId}:`, await response.text());
+    const errorText = await response.text();
+    console.error(`[Telegram] ❌ 消息发送失败 ${chatId}:`, errorText);
+    
+    // 如果是因为找不到被回复的消息（通常发生在测试环境中，或者消息已被删除）
+    // 则重试发送，但不带 reply_to_message_id
+    if (replyToMessageId && errorText.includes("message to be replied not found")) {
+      console.warn(`[Telegram] ⚠️ 找不到要回复的消息 ${replyToMessageId}，将作为普通消息发送`);
+      return sendMessage(chatId, text, replyMarkup); // 不传 replyToMessageId 重试
+    }
+    
     throw new Error("Failed to send message to Telegram");
   }
 
