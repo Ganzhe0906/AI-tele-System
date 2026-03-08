@@ -45,7 +45,7 @@ export async function detectIntent(text: string): Promise<IntentResult> {
     model: "gemini-3-flash-preview", 
     generationConfig: {
       responseMimeType: "application/json",
-      responseSchema: schema,
+      responseSchema: schema as any,
       temperature: 0.1, 
     },
   });

@@ -23,6 +23,7 @@ export interface TelegramMessage {
   date: number;
   text?: string;
   voice?: TelegramVoice;
+  reply_to_message?: TelegramMessage;
 }
 
 export interface TelegramVoice {

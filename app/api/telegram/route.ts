@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next";
+import { NextRequest, NextResponse } from "next/server";
 import { waitUntil } from "@vercel/functions";
 import { TelegramUpdate } from "../../../types";
 import {
