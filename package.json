@@ -14,6 +14,7 @@
   "description": "",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@neondatabase/serverless": "^0.10.4",
     "@vercel/functions": "^2.2.13",
     "next": "^14.2.35",
     "react": "^18.3.1",

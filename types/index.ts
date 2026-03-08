@@ -55,15 +55,23 @@ export type IntentType =
 export interface IntentResult {
   intent: IntentType;
   extracted_info: string;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+  };
 }
 
 export interface LogEntry {
   id: string;
   timestamp: string;
-  userId: number;
+  userId: string | number;
   username?: string;
   type: "text" | "voice";
   intent: IntentType;
   status: "success" | "error" | "processing";
   extractedInfo: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  cost?: number;
 }

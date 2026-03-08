@@ -70,12 +70,25 @@ export async function detectIntent(text: string): Promise<IntentResult> {
   const startTime = Date.now();
   const result = await model.generateContent(prompt);
   const responseText = result.response.text();
+  const usage = result.response.usageMetadata;
+  
   console.log(`[AI] ✅ Gemini 响应完成，耗时 ${Date.now() - startTime}ms`);
+  
+  if (usage) {
+    console.log(`[AI] 📊 Token统计 - 输入: ${usage.promptTokenCount}, 输出: ${usage.candidatesTokenCount}, 总计: ${usage.totalTokenCount}`);
+  }
   
   try {
     const parsed = JSON.parse(responseText);
     console.log(`[AI] 识别意图: ${parsed.intent}`);
-    return parsed as IntentResult;
+    return {
+      ...parsed,
+      usage: usage ? {
+        inputTokens: usage.promptTokenCount,
+        outputTokens: usage.candidatesTokenCount,
+        totalTokens: usage.totalTokenCount,
+      } : undefined
+    } as IntentResult;
   } catch (err) {
     console.error("[AI] ❌ 解析 Gemini 响应失败:", responseText);
     return {

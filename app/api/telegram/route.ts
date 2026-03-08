@@ -9,6 +9,7 @@ import {
 } from "../../../lib/telegram";
 import { detectIntent, transcribeAudio } from "../../../lib/ai";
 import { buildIntentConfirmation, executeIntentFunction } from "../../../lib/subsystems";
+import { insertLog } from "../../../lib/db";
 
 // 设置最大执行时间（秒），防止僵尸任务
 const MAX_EXECUTION_TIME = 55000; // Vercel 免费版通常 10s，Pro 版 60s，留 5s 缓冲
@@ -196,6 +197,27 @@ async function processMessage(
         console.log(`[处理] 正在识别意图: "${finalContent.substring(0, 50)}..."`);
         const intentResult = await detectIntent(finalContent);
         console.log(`[处理] 识别到意图: ${intentResult.intent}`);
+
+        // Calculate Cost (Gemini 1.5 Flash pricing example: $0.075/1M input, $0.3/1M output)
+        const inputTokens = intentResult.usage?.inputTokens || 0;
+        const outputTokens = intentResult.usage?.outputTokens || 0;
+        const cost = (inputTokens / 1000000) * 0.075 + (outputTokens / 1000000) * 0.3;
+
+        // Save log to Neon
+        try {
+          await insertLog({
+            user_id: chatId.toString(),
+            type: isVoice ? "voice" : "text",
+            intent: intentResult.intent,
+            status: "success",
+            extracted_info: intentResult.extracted_info,
+            input_tokens: inputTokens,
+            output_tokens: outputTokens,
+            cost: cost,
+          });
+        } catch (dbErr) {
+          console.error("[DB] 无法插入日志:", dbErr);
+        }
 
         // C. 子系统路由 (仅构建确认消息，不直接执行)
         console.log(`[处理] 构建子系统确认消息...`);

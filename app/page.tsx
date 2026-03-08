@@ -5,42 +5,36 @@ import { LogEntry } from "../types";
 
 export default function Dashboard() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [stats, setStats] = useState({
+    total_logs: 0,
+    success_logs: 0,
+    total_input_tokens: 0,
+    total_output_tokens: 0,
+    total_cost: 0,
+  });
+
+  const fetchLogs = async () => {
+    try {
+      const res = await fetch("/api/logs");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          setLogs(json.data.logs);
+          setStats(json.data.stats);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch logs:", err);
+    }
+  };
 
   useEffect(() => {
-    // 模拟从数据库或外部 API 获取日志
-    const mockLogs: LogEntry[] = [
-      {
-        id: "log-101",
-        timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-        userId: 1234567,
-        username: "Alice",
-        type: "text",
-        intent: "finance",
-        status: "success",
-        extractedInfo: "买入 100 股 AAPL",
-      },
-      {
-        id: "log-102",
-        timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-        userId: 7654321,
-        username: "Bob",
-        type: "voice",
-        intent: "todo",
-        status: "success",
-        extractedInfo: "明天下午 3 点开会",
-      },
-      {
-        id: "log-103",
-        timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-        userId: 1112223,
-        username: "Charlie",
-        type: "text",
-        intent: "selection",
-        status: "error",
-        extractedInfo: "淘宝对比两款显示器...",
-      },
-    ];
-    setLogs(mockLogs);
+    // Initial fetch
+    fetchLogs();
+    
+    // Poll every 10 seconds
+    const interval = setInterval(fetchLogs, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const intentColors: Record<string, string> = {
@@ -132,10 +126,10 @@ export default function Dashboard() {
       {/* Stats Cards */}
       <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
-          { label: "今日接收", value: "1,024" },
-          { label: "成功率", value: "98.5%" },
-          { label: "平均延迟", value: "1.2s" },
-          { label: "错误重试", value: "15" },
+          { label: "总请求数", value: stats.total_logs.toLocaleString() },
+          { label: "成功率", value: stats.total_logs > 0 ? `${((stats.success_logs / stats.total_logs) * 100).toFixed(1)}%` : "0%" },
+          { label: "总 Token (Input/Output)", value: `${(stats.total_input_tokens / 1000).toFixed(1)}k / ${(stats.total_output_tokens / 1000).toFixed(1)}k` },
+          { label: "总成本 (USD)", value: `$${stats.total_cost.toFixed(4)}` },
         ].map((stat, i) => (
           <div
             key={i}
@@ -196,6 +190,8 @@ export default function Dashboard() {
                 <th className="px-6 py-4 font-medium">类型</th>
                 <th className="px-6 py-4 font-medium">意图 (Intent)</th>
                 <th className="px-6 py-4 font-medium">提取信息</th>
+                <th className="px-6 py-4 font-medium">Token消耗 (In/Out)</th>
+                <th className="px-6 py-4 font-medium">花费</th>
                 <th className="px-6 py-4 font-medium text-right">状态</th>
               </tr>
             </thead>
@@ -226,6 +222,12 @@ export default function Dashboard() {
                   <td className="px-6 py-4 truncate max-w-xs" title={log.extractedInfo}>
                     {log.extractedInfo}
                   </td>
+                  <td className="px-6 py-4 text-xs text-neutral-400">
+                    {log.inputTokens || 0} / {log.outputTokens || 0}
+                  </td>
+                  <td className="px-6 py-4 text-xs text-green-400">
+                    ${log.cost ? log.cost.toFixed(6) : "0.000000"}
+                  </td>
                   <td
                     className={`px-6 py-4 text-right font-medium capitalize ${
                       statusColors[log.status]
@@ -238,7 +240,7 @@ export default function Dashboard() {
               {logs.length === 0 && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={8}
                     className="px-6 py-12 text-center text-neutral-500"
                   >
                     暂无数据...
