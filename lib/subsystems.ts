@@ -2,9 +2,10 @@ import { IntentResult } from "../types";
 import {
   postTodoTask,
   postDiaryNotification,
+  getFinanceShopList,
   getFinanceAiContext,
 } from "./external-apis";
-import { summarizeFinanceContext } from "./ai";
+import { summarizeFinanceContext, resolveOperationsParams } from "./ai";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 轨道区分：读操作跳过确认按钮，写操作保留确认
@@ -68,7 +69,26 @@ export async function processKnowledge(extractedInfo: string): Promise<string> {
 }
 
 export async function processOperations(extractedInfo: string): Promise<string> {
-  const result = await getFinanceAiContext();
+  // 1. 获取店铺列表（前端不知财务系统命名规则，需先查询）
+  const shopsResult = await getFinanceShopList();
+  if (!shopsResult.success) {
+    return shopsResult.error;
+  }
+  const shops = shopsResult.data;
+  if (!shops || shops.length === 0) {
+    return "❌ 暂无可用店铺，请联系管理员配置。";
+  }
+
+  // 2. 用 Gemini 从用户表述中匹配最接近的店铺并解析月份
+  const params = await resolveOperationsParams(extractedInfo, shops);
+  if (!params) {
+    return "❌ 无法识别店铺或月份，请明确说出店铺名和月份，例如：三月份 Miamax 的大盘利润。";
+  }
+
+  console.log(`[执行] 解析参数: shopId=${params.shopId}, month=${params.month}`);
+
+  // 3. 调用财务快照接口
+  const result = await getFinanceAiContext(params.shopId, params.month);
   if (!result.success) {
     return result.error;
   }

@@ -164,6 +164,62 @@ export async function transcribeAudio(fileUrl: string): Promise<string> {
 }
 
 /**
+ * 将用户自然语言（如「三月份Miamax的大盘利润」）解析为财务 API 所需参数
+ * @param extractedInfo 意图提取的文本
+ * @param shops 店铺列表（来自 getFinanceShopList）
+ * @returns { shopId, month } 或 null（解析失败）
+ */
+export async function resolveOperationsParams(
+  extractedInfo: string,
+  shops: { shopId: string; shopName: string }[]
+): Promise<{ shopId: string; month: string } | null> {
+  if (!GEMINI_API_KEY || shops.length === 0) {
+    return null;
+  }
+
+  const schema = {
+    type: SchemaType.OBJECT,
+    properties: {
+      shopId: { type: SchemaType.STRING, description: "The shopId from the provided list" },
+      month: { type: SchemaType.STRING, description: "YYYY-MM format, e.g. 2026-03" },
+    },
+    required: ["shopId", "month"],
+  };
+
+  const model = genAI.getGenerativeModel({
+    model: "gemini-3-flash-preview",
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: schema as any,
+      temperature: 0.1,
+    },
+  });
+
+  const shopsJson = JSON.stringify(shops, null, 2);
+  const prompt = `你是一个参数解析助手。用户说：「${extractedInfo}」
+
+可选店铺列表（必须从中选择最匹配的一个 shopId）：
+${shopsJson}
+
+任务：
+1. 从用户表述中推断月份，转换为 YYYY-MM 格式。若未提及月份，用当前月份 ${new Date().toISOString().slice(0, 7)}。
+2. 从上述店铺列表中选出与用户所指最接近的店铺，返回其 shopId（不是 shopName）。
+
+仅返回 JSON：{"shopId":"xxx","month":"YYYY-MM"}`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const parsed = JSON.parse(result.response.text());
+    if (parsed?.shopId && parsed?.month) {
+      return { shopId: parsed.shopId, month: parsed.month };
+    }
+  } catch (err) {
+    console.error("[AI] resolveOperationsParams 解析失败:", err);
+  }
+  return null;
+}
+
+/**
  * 将财务 API 返回的 JSON 转化为自然语言业务总结
  * 用于轨道二（读操作）直出给用户
  */
