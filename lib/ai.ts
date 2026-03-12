@@ -256,23 +256,24 @@ export async function summarizeFinanceContext(rawData: unknown): Promise<string>
 
 【数据结构】优先使用 store + topSkus（新规整结构），若无则用扁平字段兜底。
 
-• store（全店汇总）：
-  revenue（营收）, orderProfit（订单利润，未扣任何支出）, orderCount（订单数）
-  支出项：adSpend, storageFee, inboundFee, jointMarketingFee, monthlyOperatingExpenses, sampleProductCost, sampleShippingCost
-  结果：estimatedNetProfit / finalNetProfit（净利 = 订单利润 - 上述全部支出）
+• store（全店汇总）— 利润口径：orderProfit 为「未扣除样品费」的订单层利润
+  revenue（营收）, orderProfit（订单利润，未扣样品）, orderCount（订单数）
+  支出项：sampleProductCost + sampleShippingCost（样品支出）, adSpend（广告费）, storageFee, inboundFee, jointMarketingFee, monthlyOperatingExpenses（经营费等）
+  计算公式：orderProfit − 样品支出 − 广告费 − 其它费用 = finalNetProfit
+  结果：estimatedNetProfit / finalNetProfit（已扣全部成本，直接使用）
 
 • topSkus（单量前 10 重点 SKU，每项）：
-  name, productName, qty（销量）, profit（订单利润，未扣广告）, sampleCost（样品费）, adCost, adROI, affiliatePct（达人占比%）
-  若有 netProfit 字段则直接使用，否则单品净利 ≈ profit - adCost - sampleCost
+  name, productName, qty, profit（订单利润，未扣样品、未扣广告）, sampleCost, adCost, adROI, affiliatePct
+  单品净利：若有 netProfit 用其，否则 ≈ profit − sampleCost − adCost
 
-• 兜底扁平字段：estimatedRevenue, estimatedOrderProfit, adSpend, profitBySku, adCostBySku, affiliateRankingData
+• 兜底扁平字段：estimatedOrderProfit（未扣样品）, estimatedRevenue, adSpend, profitBySku, adCostBySku, affiliateRankingData
 
 【报告结构】必须严格按以下格式输出：
 
 📊 一、店铺整体
-1. 盈利计算过程（按顺序列出，每项带具体数字）：
+1. 盈利计算过程（公式：订单利润 − 样品 − 广告 − 其它 = 净利，按顺序列出每项金额）：
    订单盈利 $X → 减 样品支出 $X → 减 广告支出 $X → 减 经营/仓储/入库/合资等 $X → 最终净利 $X
-   （若某项为 0 或缺失可省略，但顺序保持）
+   （样品支出 = sampleProductCost + sampleShippingCost；若某项为 0 可省略，顺序不变）
 2. 盈亏判断与 ROI（营收/广告费）、问题诊断（1-2 句）。
 
 📦 二、单品 Top3 明细
