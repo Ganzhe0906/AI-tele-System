@@ -248,34 +248,40 @@ export async function summarizeFinanceContext(rawData: unknown): Promise<string>
 【重要规则】
 1. 所有金额单位均为美元(USD)，用「美元」或「$」，严禁「元」或「人民币」。
 2. 直接输出正文，无寒暄语。
-3. 输出为纯文本，适配 Telegram 等即时通讯，便于手机阅读：
+3. 输出为纯文本，适配 Telegram 等即时通讯：
    - 用空行分段，每段 2-3 行，不要大块长段。
    - 用小标题（如「📊 一、店铺整体」）分隔，不用 ### 或 **。
    - 关键数字单独成行或用短句，便于扫读。
-   - 总字数 350 字内，精炼直击痛点。
+   - 总字数 450 字内，精炼直击痛点。
 
 【数据结构】优先使用 store + topSkus（新规整结构），若无则用扁平字段兜底。
 
 • store（全店汇总）：
-  revenue, orderProfit, adSpend, orderCount, estimatedNetProfit, finalNetProfit, exchangeRate
-  另有：storageFee, inboundFee, jointMarketingFee, monthlyOperatingExpenses, sampleProductCost, sampleShippingCost 等支出项
+  revenue（营收）, orderProfit（订单利润，未扣任何支出）, orderCount（订单数）
+  支出项：adSpend, storageFee, inboundFee, jointMarketingFee, monthlyOperatingExpenses, sampleProductCost, sampleShippingCost
+  结果：estimatedNetProfit / finalNetProfit（净利 = 订单利润 - 上述全部支出）
 
 • topSkus（单量前 10 重点 SKU，每项）：
-  name, productName, qty（销量）, profit（订单利润，未扣广告）, adCost, adROI（广告ROI）, affiliatePct（达人占比%）
+  name, productName, qty（销量）, profit（订单利润，未扣广告）, sampleCost（样品费）, adCost, adROI, affiliatePct（达人占比%）
+  若有 netProfit 字段则直接使用，否则单品净利 ≈ profit - adCost - sampleCost
 
-• 兜底扁平字段：estimatedRevenue, estimatedOrderProfit, adSpend, orderCount, estimatedNetProfit, finalNetProfit, profitBySku, adCostBySku, affiliateRankingData
+• 兜底扁平字段：estimatedRevenue, estimatedOrderProfit, adSpend, profitBySku, adCostBySku, affiliateRankingData
 
-• 利润口径：orderProfit/profit 为未扣广告的订单利润；estimatedNetProfit/finalNetProfit 为已扣全部费用的净利。
+【报告结构】必须严格按以下格式输出：
 
-【报告结构】
 📊 一、店铺整体
-核心指标（营收、订单数、广告费、净利）、盈亏判断、全店 ROI（营收/广告费）、问题诊断。
+1. 盈利计算过程（按顺序列出，每项带具体数字）：
+   订单盈利 $X → 减 样品支出 $X → 减 广告支出 $X → 减 经营/仓储/入库/合资等 $X → 最终净利 $X
+   （若某项为 0 或缺失可省略，但顺序保持）
+2. 盈亏判断与 ROI（营收/广告费）、问题诊断（1-2 句）。
 
-📦 二、单品与广告
-结合 topSkus（或 profitBySku + adCostBySku）找出：核心利润款、亏损/低效款（扣广告后不盈利）。1-2 句优化建议。
+📦 二、单品 Top3 明细
+必须逐条列出前三名 SKU，每条格式：
+  • 【SKU名】订单利润 $X，样品 $X，广告 $X，达人占比 X%；扣广告后（盈利/亏损）$X。
+（三条都要列数据，不得省略）
 
 👥 三、达人情况
-若有 affiliateRankingData 或 topSkus.affiliatePct：简述达人依赖度与健康度。
+简述达人依赖度与健康度（若有数据）。
 
 原始数据（JSON）：
 ${JSON.stringify(rawData)}
