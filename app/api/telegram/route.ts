@@ -8,7 +8,11 @@ import {
   getFileUrl,
 } from "../../../lib/telegram";
 import { detectIntent, transcribeAudio } from "../../../lib/ai";
-import { buildIntentConfirmation, executeIntentFunction } from "../../../lib/subsystems";
+import {
+  buildIntentConfirmation,
+  executeIntentFunction,
+  isReadIntent,
+} from "../../../lib/subsystems";
 import { insertLog } from "../../../lib/db";
 
 // 设置最大执行时间（秒），防止僵尸任务
@@ -219,18 +223,37 @@ async function processMessage(
           console.error("[DB] 无法插入日志:", dbErr);
         }
 
-        // C. 子系统路由 (仅构建确认消息，不直接执行)
-        console.log(`[处理] 构建子系统确认消息...`);
-        const { text: replyText, replyMarkup } = buildIntentConfirmation(intentResult);
-        console.log(`[处理] 确认消息已生成`);
+        // C. 子系统路由：读操作直出，写操作弹确认
+        if (isReadIntent(intentResult.intent)) {
+          // 轨道二：读操作 - 跳过确认按钮，直接调用外部 API 并返回结果
+          console.log(`[处理] 读操作 "${intentResult.intent}"，直接获取并返回结果`);
+          try {
+            await editMessageText(chatId, messageId, "⏳ 正在获取财务数据...");
+            const resultText = await executeIntentFunction(
+              intentResult.intent,
+              intentResult.extracted_info
+            );
+            await editMessageText(chatId, messageId, resultText);
+          } catch (e) {
+            console.error("[处理] 读操作执行失败:", e);
+            await editMessageText(
+              chatId,
+              messageId,
+              "❌ 财务网接口无响应，请稍后再试。"
+            );
+          }
+        } else {
+          // 轨道一：写操作（todo/diary 等）- 构建确认消息，等待用户点击
+          console.log(`[处理] 构建子系统确认消息...`);
+          const { text: replyText, replyMarkup } = buildIntentConfirmation(intentResult);
+          console.log(`[处理] 确认消息已生成`);
 
-        // D. 更新结果
-        try {
-          await editMessageText(chatId, messageId, replyText, replyMarkup);
-        } catch (e) {
-          console.warn(`[处理] ⚠️ 编辑消息失败，尝试发送新消息`);
-          // 如果编辑彻底失败，作为最后手段再直接发送一条新消息
-          await sendMessage(chatId, replyText, replyMarkup);
+          try {
+            await editMessageText(chatId, messageId, replyText, replyMarkup);
+          } catch (e) {
+            console.warn(`[处理] ⚠️ 编辑消息失败，尝试发送新消息`);
+            await sendMessage(chatId, replyText, replyMarkup);
+          }
         }
         console.log(`[处理] ✅ 处理周期成功完成`);
       })(),

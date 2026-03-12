@@ -162,3 +162,38 @@ export async function transcribeAudio(fileUrl: string): Promise<string> {
     return "语音转文字异常";
   }
 }
+
+/**
+ * 将财务 API 返回的 JSON 转化为自然语言业务总结
+ * 用于轨道二（读操作）直出给用户
+ */
+export async function summarizeFinanceContext(rawData: unknown): Promise<string> {
+  if (!GEMINI_API_KEY) {
+    return "❌ AI 服务未配置。";
+  }
+
+  const model = genAI.getGenerativeModel({
+    model: "gemini-3-flash-preview",
+    generationConfig: {
+      temperature: 0.3,
+    },
+  });
+
+  const prompt = `你是一个财经助理。请根据以下财务 API 返回的 JSON 数据，用简洁自然的语言总结出关键信息，方便用户快速了解大盘/市场概况。
+- 突出重点数据（如涨跌、指数、重要事件）
+- 控制在一段话内，不超过 300 字
+- 使用中文
+
+原始数据（JSON）：
+${JSON.stringify(rawData)}
+`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    return text?.trim() || "暂无财务摘要。";
+  } catch (err) {
+    console.error("[AI] Gemini 财务摘要失败:", err);
+    return "❌ 财务数据解析失败，请稍后再试。";
+  }
+}
