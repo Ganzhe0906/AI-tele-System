@@ -248,41 +248,37 @@ export async function summarizeFinanceContext(rawData: unknown): Promise<string>
 【重要规则】
 1. 所有金额单位均为美元(USD)，用「美元」或「$」，严禁「元」或「人民币」。
 2. 直接输出正文，无寒暄语。
-3. 输出为纯文本，适配 Telegram 等即时通讯：
-   - 用空行分段，每段 2-3 行，不要大块长段。
-   - 用小标题（如「📊 一、店铺整体」）分隔，不用 ### 或 **。
-   - 关键数字单独成行或用短句，便于扫读。
-   - 总字数 450 字内，精炼直击痛点。
+3. 盈利/正数用 🟢 前缀，亏损/扣除/支出用 🔴 前缀，便于扫读。
+4. 用空行分段，每段 2-3 行，小标题（如「📊 一、店铺整体」）分隔。
+5. 总字数 650 字内，精炼直击痛点。
 
 【数据结构】优先使用 store + topSkus（新规整结构），若无则用扁平字段兜底。
 
 • store（全店汇总）— 利润口径：orderProfit 为「未扣除样品费」的订单层利润
-  revenue（营收）, orderProfit（订单利润，未扣样品）, orderCount（订单数）
-  支出项：sampleProductCost + sampleShippingCost（样品支出）, adSpend（广告费）, storageFee, inboundFee, jointMarketingFee, monthlyOperatingExpenses（经营费等）
-  计算公式：orderProfit − 样品支出 − 广告费 − 其它费用 = finalNetProfit
-  结果：estimatedNetProfit / finalNetProfit（已扣全部成本，直接使用）
+  revenue, orderProfit, orderCount
+  支出项：sampleProductCost + sampleShippingCost, adSpend, storageFee, inboundFee, jointMarketingFee, monthlyOperatingExpenses
+  公式：orderProfit − 样品 − 广告 − 其它 = finalNetProfit
 
-• topSkus（单量前 10 重点 SKU，每项）：
-  name, productName, qty, profit（订单利润，未扣样品、未扣广告）, sampleCost, adCost, adROI, affiliatePct
-  单品净利：若有 netProfit 用其，否则 ≈ profit − sampleCost − adCost
+• topSkus（单量前 10 重点 SKU）：name, productName, qty, profit, sampleCost, adCost, adROI, affiliatePct
+  单品净利 ≈ profit − sampleCost − adCost（若有 netProfit 用其）
 
-• 兜底扁平字段：estimatedOrderProfit（未扣样品）, estimatedRevenue, adSpend, profitBySku, adCostBySku, affiliateRankingData
+• 兜底：estimatedOrderProfit, estimatedRevenue, adSpend, profitBySku, adCostBySku, affiliateRankingData
 
-【报告结构】必须严格按以下格式输出：
+【报告结构】必须严格按以下格式，不要输出「三、达人情况」：
 
 📊 一、店铺整体
-1. 盈利计算过程（公式：订单利润 − 样品 − 广告 − 其它 = 净利，按顺序列出每项金额）：
-   订单盈利 $X → 减 样品支出 $X → 减 广告支出 $X → 减 经营/仓储/入库/合资等 $X → 最终净利 $X
-   （样品支出 = sampleProductCost + sampleShippingCost；若某项为 0 可省略，顺序不变）
-2. 盈亏判断与 ROI（营收/广告费）、问题诊断（1-2 句）。
+1. 盈利计算过程（每项前加 🟢 盈利或 🔴 扣除）：
+   🟢 订单盈利 $X
+   🔴 减 样品支出 $X
+   🔴 减 广告支出 $X
+   🔴 减 经营/仓储/入库等 $X（若为 0 可省略）
+   🟢/🔴 最终净利 $X（盈利用🟢，亏损用🔴）
+2. 盈亏判断与 ROI、问题诊断（1-2 句）。
 
-📦 二、单品 Top3 明细
-必须逐条列出前三名 SKU，每条格式：
-  • 【SKU名】订单利润 $X，样品 $X，广告 $X，达人占比 X%；扣广告后（盈利/亏损）$X。
-（三条都要列数据，不得省略）
-
-👥 三、达人情况
-简述达人依赖度与健康度（若有数据）。
+📦 二、单品 Top8 明细
+必须逐条列出前八名 SKU，每条格式：
+  • 【SKU名】🟢/🔴 订单利润 $X，🔴 样品 $X，🔴 广告 $X，达人 X%；扣广告后 🟢/🔴 $X。点评：一句话点评该产品盈利健康度（如：健康/尚可/需控样品/广告低效/严重亏损等）。
+（八条都要列数据+点评，不得省略）
 
 原始数据（JSON）：
 ${JSON.stringify(rawData)}
