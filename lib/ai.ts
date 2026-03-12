@@ -229,6 +229,7 @@ ${shopsJson}
 /**
  * 将财务 API 返回的 JSON 转化为自然语言业务报告
  * 用于轨道二（读操作）直出给用户，含店铺维度分析与单品维度诊断
+ * 适配新 API 结构：优先使用 store + topSkus，兼容旧扁平字段
  */
 export async function summarizeFinanceContext(rawData: unknown): Promise<string> {
   if (!GEMINI_API_KEY) {
@@ -242,38 +243,39 @@ export async function summarizeFinanceContext(rawData: unknown): Promise<string>
     },
   });
 
-  const prompt = `你是 TikTok 资深电商店铺财务分析师。请根据以下财务快照数据，输出一份结构化、专业的财务诊断报告。
+  const prompt = `你是 TikTok 资深电商店铺财务分析师。请根据以下财务快照数据，输出一份在手机/Telegram 上易读的财务诊断报告。
 
 【重要规则】
-1. 数据中所有金额单位均为美元(USD)，输出时请使用「美元」或「$」，严禁使用「元」或「人民币」。
-2. 请直接输出报告正文，不要有“你好”、“这是您的报告”等寒暄语。
-3. 报告需分层次展现，结构清晰，可使用 Markdown 格式（如加粗、列表）。
-4. 整体字数控制在 400 字以内，语言精炼、直击痛点。
+1. 所有金额单位均为美元(USD)，用「美元」或「$」，严禁「元」或「人民币」。
+2. 直接输出正文，无寒暄语。
+3. 输出为纯文本，适配 Telegram 等即时通讯，便于手机阅读：
+   - 用空行分段，每段 2-3 行，不要大块长段。
+   - 用小标题（如「📊 一、店铺整体」）分隔，不用 ### 或 **。
+   - 关键数字单独成行或用短句，便于扫读。
+   - 总字数 350 字内，精炼直击痛点。
 
-【数据结构说明】
-- estimatedRevenue: 预估营收 (USD)
-- estimatedOrderProfit: 预估订单毛利 (USD)
-- adSpend: 广告消耗 (USD)
-- orderCount: 订单总数
-- estimatedNetProfit / finalNetProfit: 净利 (USD) 
-- exchangeRate: 当月汇率（如 7 表示 1 美元≈7 人民币）
-- profitBySku: 利润贡献 Top SKU，value 为美元
-- adCostBySku: 广告消耗 Top SKU，value 为美元
-- affiliateRankingData: 达人出单占比 (affiliateCount: 达人出单数, totalCount: 总订单, percentage: 达人占比)
+【数据结构】优先使用 store + topSkus（新规整结构），若无则用扁平字段兜底。
 
-【报告结构要求】
-### 一、店铺整体表现
-1. 核心指标：列出营收、订单数、广告费、最终净利。
-2. 盈利诊断：明确指出本月是盈利还是亏损；计算全店 ROI (预估营收 / 广告消耗) 或利润率；简要分析问题可能出在哪里（如广告费占比过高、订单毛利不足等）。
+• store（全店汇总）：
+  revenue, orderProfit, adSpend, orderCount, estimatedNetProfit, finalNetProfit, exchangeRate
+  另有：storageFee, inboundFee, jointMarketingFee, monthlyOperatingExpenses, sampleProductCost, sampleShippingCost 等支出项
 
-### 二、单品与广告分析
-1. 结合 \`profitBySku\` 与 \`adCostBySku\` 找出：
-   - 核心利润款（利润高、广告占比合理）。
-   - 亏损或低效款（广告费很高但利润贡献极低，甚至扣除广告后不盈利）。
-2. 给出针对单品广告投放的优化建议。
+• topSkus（单量前 10 重点 SKU，每项）：
+  name, productName, qty（销量）, profit（订单利润，未扣广告）, adCost, adROI（广告ROI）, affiliatePct（达人占比%）
 
-### 三、达人建联情况 (若有 \`affiliateRankingData\`)
-简述哪些 SKU 严重依赖达人出单，或者整体的达人出单占比健康度。
+• 兜底扁平字段：estimatedRevenue, estimatedOrderProfit, adSpend, orderCount, estimatedNetProfit, finalNetProfit, profitBySku, adCostBySku, affiliateRankingData
+
+• 利润口径：orderProfit/profit 为未扣广告的订单利润；estimatedNetProfit/finalNetProfit 为已扣全部费用的净利。
+
+【报告结构】
+📊 一、店铺整体
+核心指标（营收、订单数、广告费、净利）、盈亏判断、全店 ROI（营收/广告费）、问题诊断。
+
+📦 二、单品与广告
+结合 topSkus（或 profitBySku + adCostBySku）找出：核心利润款、亏损/低效款（扣广告后不盈利）。1-2 句优化建议。
+
+👥 三、达人情况
+若有 affiliateRankingData 或 topSkus.affiliatePct：简述达人依赖度与健康度。
 
 原始数据（JSON）：
 ${JSON.stringify(rawData)}

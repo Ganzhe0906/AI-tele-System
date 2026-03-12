@@ -6,6 +6,7 @@ import {
   editMessageText,
   answerCallbackQuery,
   getFileUrl,
+  formatReportForTelegram,
 } from "../../../lib/telegram";
 import { detectIntent, transcribeAudio } from "../../../lib/ai";
 import {
@@ -125,7 +126,15 @@ async function handleUpdate(update: TelegramUpdate) {
           
           try {
             const resultText = await executeIntentFunction(intentType, extractedInfo);
-            await editMessageText(message.chat.id, message.message_id, resultText);
+            const isReport = intentType === "operations" || intentType === "finance";
+            const displayText = isReport ? formatReportForTelegram(resultText) : resultText;
+            await editMessageText(
+              message.chat.id,
+              message.message_id,
+              displayText,
+              undefined,
+              isReport ? "HTML" : undefined
+            );
           } catch (e) {
             console.error("[回调] 执行意图失败:", e);
             await editMessageText(message.chat.id, message.message_id, "❌ 执行失败，请稍后重试。");
@@ -233,7 +242,17 @@ async function processMessage(
               intentResult.intent,
               intentResult.extracted_info
             );
-            await editMessageText(chatId, messageId, resultText);
+            const displayText =
+              intentResult.intent === "operations" || intentResult.intent === "finance"
+                ? formatReportForTelegram(resultText)
+                : resultText;
+            await editMessageText(
+              chatId,
+              messageId,
+              displayText,
+              undefined,
+              displayText !== resultText ? "HTML" : undefined
+            );
           } catch (e) {
             console.error("[处理] 读操作执行失败:", e);
             await editMessageText(

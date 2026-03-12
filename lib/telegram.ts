@@ -2,19 +2,44 @@ const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
 
 /**
+ * 为财务报告等长文本启用 HTML 格式，突出关键数字
+ * 将 $ 金额和 XX% 包裹为 <b>，并转义 & < >
+ */
+export function formatReportForTelegram(text: string): string {
+  const boldMatches: string[] = [];
+  const placeholder = (i: number) => `\uE000${i}\uE001`; // 私有区字符，避免与正文冲突
+  let out = text
+    .replace(/\$[-]?[\d,]+\.?\d*/g, (m) => {
+      boldMatches.push(m);
+      return placeholder(boldMatches.length - 1);
+    })
+    .replace(/(\d+\.?\d*)%/g, (m) => {
+      boldMatches.push(m);
+      return placeholder(boldMatches.length - 1);
+    });
+  out = out.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  for (let i = boldMatches.length - 1; i >= 0; i--) {
+    out = out.split(placeholder(i)).join(`<b>${boldMatches[i]}</b>`);
+  }
+  return out;
+}
+
+/**
  * 发送文本消息
+ * @param parseMode 可选 "HTML"，用于财务报告等需强调数字的场景
  */
 export async function sendMessage(
   chatId: number,
   text: string,
   replyMarkup?: any,
-  replyToMessageId?: number
+  replyToMessageId?: number,
+  parseMode?: "HTML"
 ) {
   const url = `${TELEGRAM_API_URL}/sendMessage`;
   const body: any = {
     chat_id: chatId,
     text,
-    // parse_mode: "HTML",
+    ...(parseMode && { parse_mode: parseMode }),
   };
 
   if (replyMarkup) {
@@ -42,7 +67,7 @@ export async function sendMessage(
     // 则重试发送，但不带 reply_to_message_id
     if (replyToMessageId && errorText.includes("message to be replied not found")) {
       console.warn(`[Telegram] ⚠️ 找不到要回复的消息 ${replyToMessageId}，将作为普通消息发送`);
-      return sendMessage(chatId, text, replyMarkup); // 不传 replyToMessageId 重试
+      return sendMessage(chatId, text, replyMarkup, undefined, parseMode); // 不传 replyToMessageId 重试
     }
     
     throw new Error("Failed to send message to Telegram");
@@ -55,19 +80,21 @@ export async function sendMessage(
 
 /**
  * 编辑已发送的消息
+ * @param parseMode 可选 "HTML"，用于财务报告等
  */
 export async function editMessageText(
   chatId: number,
   messageId: number,
   text: string,
-  replyMarkup?: any
+  replyMarkup?: any,
+  parseMode?: "HTML"
 ) {
   const url = `${TELEGRAM_API_URL}/editMessageText`;
   const body: any = {
     chat_id: chatId,
     message_id: messageId,
     text,
-    // parse_mode: "HTML",
+    ...(parseMode && { parse_mode: parseMode }),
   };
 
   if (replyMarkup) {
@@ -88,7 +115,7 @@ export async function editMessageText(
     // 或者该消息已被用户删除，则尝试将内容作为一条新消息发送
     if (errorText.includes("message to edit not found") || errorText.includes("message not found")) {
       console.warn(`[Telegram] ⚠️ 找不到要编辑的消息 ${messageId}，将作为新消息发送给用户 ${chatId}`);
-      return sendMessage(chatId, text, replyMarkup);
+      return sendMessage(chatId, text, replyMarkup, undefined, parseMode);
     }
     
     throw new Error("Failed to edit message in Telegram");
