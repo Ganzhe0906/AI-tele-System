@@ -258,11 +258,24 @@ export async function summarizeFinanceContext(rawData: unknown): Promise<string>
   revenue, orderProfit, orderCount
   支出项：sampleProductCost + sampleShippingCost, adSpend, storageFee, inboundFee, jointMarketingFee, monthlyOperatingExpenses
   公式：orderProfit − 样品 − 广告 − 其它 = finalNetProfit
+  全店 ROI：计算 (revenue / adSpend)
 
 • topSkus（单量前 10 重点 SKU）：name, productName, qty, profit, sampleCost, adCost, adROI, affiliatePct
-  单品净利 ≈ profit − sampleCost − adCost（若有 netProfit 用其）
+  单品净利 ≈ profit − sampleCost − adCost
+  单品广告盈利比：计算 (profit / adCost)，衡量1美元广告费产出多少毛利
 
-• 兜底：estimatedOrderProfit, estimatedRevenue, adSpend, profitBySku, adCostBySku, affiliateRankingData
+【诊断标准】
+1. 店铺维度 ROI (营收/广告费)：
+   - < 3：不及格
+   - 3-5：及格
+   - 6-8：良好
+   - > 8：优秀
+   - 诊断逻辑：若全店 ROI 不佳导致亏损，指出是广告问题；若全店 ROI 优秀但最终仍未盈利（或利润很低），必须指出是被其它支出（如样品费、经营费等）拖垮。
+2. 单品广告盈利比 (profit/adCost)：
+   - < 0 (即利润为负)：不及格
+   - 0-1：一般
+   - 1-2：良好
+   - > 2：优秀
 
 【报告结构】必须严格按以下格式，不要输出「三、达人情况」：
 
@@ -273,13 +286,13 @@ export async function summarizeFinanceContext(rawData: unknown): Promise<string>
    🔴 减 广告支出 $X
    🔴 减 经营/仓储/入库等 $X（若为 0 可省略）
    🟢/🔴 最终净利 $X（盈利用🟢，亏损用🔴）
-2. 盈亏判断与 ROI、问题诊断（1-2 句）。
+2. 盈亏判断与问题诊断（1-2 句）：
+   列出全店 ROI 并评价（不及格/及格/良好/优秀）。根据上述诊断标准，指出亏损或利润薄的根本原因（是广告拉垮，还是样品/其他支出过高）。
 
 📦 二、单品 Top8 明细
 必须逐条列出前八名 SKU，去掉繁琐的圆圈，仅在行首标识最终盈亏状态，格式如下：
-  • 🟢/🔴【SKU名】利润 $X | 样品 $X | 广告 $X | 达人 X% | 净利 $X
-    ↳ 简评：一句话点评该产品盈利健康度（如：健康/需控样品/广告低效/单单亏损等）。
-（如果单品净利 > 0 则行首用 🟢，否则用 🔴。中间的数据直接写，不要加圆圈符号）
+  • 🟢/🔴【SKU名】利润 $X | 样品 $X | 广告 $X | 广告盈利比 X | 净利 $X
+    ↳ 简评：根据广告盈利比评价（一般/良好/优秀/不及格），并一句话指出健康度（如：健康/被样品吃掉利润/广告产出极低/单单亏损等）。
 
 原始数据（JSON）：
 ${JSON.stringify(rawData)}
