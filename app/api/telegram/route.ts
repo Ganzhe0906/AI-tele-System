@@ -228,7 +228,7 @@ async function processMessage(
           // 轨道二：读操作 - 跳过确认按钮，直接调用外部 API 并返回结果
           console.log(`[处理] 读操作 "${intentResult.intent}"，直接获取并返回结果`);
           try {
-            await editMessageText(chatId, messageId, "⏳ 正在获取财务数据...");
+            await editMessageText(chatId, messageId, "⏳ 正在查询数据，请稍候...");
             const resultText = await executeIntentFunction(
               intentResult.intent,
               intentResult.extracted_info

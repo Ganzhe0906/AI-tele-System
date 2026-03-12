@@ -55,12 +55,12 @@ export async function detectIntent(text: string): Promise<IntentResult> {
   Extract the key information.
   
   Intents:
-  - finance: 财经资讯，如查看大盘走势、Polymarket 赔率、股票基金投资。
+  - finance: 财经资讯，如 Polymarket 赔率、股票基金投资、美股大盘等（不包含自家店铺的财务/利润数据）。
   - selection: 跨境电商选品，如抓取爆款玩具/节庆品数据、分析竞品利润、记录货品打分。
   - todo: 待办事项，如提醒发货、补充仓库耗材。
   - diary: 个人日记记录，情绪复盘，每日总结。
   - knowledge: 知识库管理，如分析微信跨境群聊干货、提炼小红书/抖音爆款运营思路。
-  - operations: TikTok 电商店铺运营，如多台手机群控调度、视频播放互动数据、达人建联管理、GMV Max 广告计划调整。
+  - operations: TikTok 电商店铺运营与数据查询，包含具体店铺（如 Miamax 等）的利润/财务数据大盘查询，以及多台手机群控调度、视频播放互动数据、达人建联管理等。
   - unknown: 如果输入内容不属于以上任何一种，或无法确定其意图，请使用 unknown。不要强行归类。
 
   User Text: "${text}"
