@@ -261,8 +261,11 @@ export async function summarizeFinanceContext(rawData: unknown): Promise<string>
   全店 ROI：计算 (revenue / adSpend)
 
 • topSkus（单量前 10 重点 SKU）：name, productName, qty, profit, sampleCost, adCost, adROI, affiliatePct
-  单品净利 ≈ profit − sampleCost − adCost
-  单品广告盈利比：计算 (profit / adCost)，衡量1美元广告费产出多少毛利
+  【关键】单品「订单利润」必须用接口原始、未扣样品的订单层利润：
+    - 若接口有 orderProfit 字段，直接用 orderProfit
+    - 否则用 profit。若 profit 实为「已扣样品后」的值（即 profit + sampleCost 更大），则 订单利润(展示) = profit + sampleCost，保证展示的是未扣样品的原始利润
+  单品净利 = 订单利润 − sampleCost − adCost（订单利润用上面规则取值）
+  单品广告盈利比 = 单品净利 / adCost（单品净利用上面规则取值；adCost 为 0 时写 0 或 "-"）
 
 【诊断标准】
 1. 店铺维度 ROI (营收/广告费)：
@@ -271,7 +274,7 @@ export async function summarizeFinanceContext(rawData: unknown): Promise<string>
    - 6-8：良好
    - > 8：优秀
    - 诊断逻辑：若全店 ROI 不佳导致亏损，指出是广告问题；若全店 ROI 优秀但最终仍未盈利（或利润很低），必须指出是被其它支出（如样品费、经营费等）拖垮。
-2. 单品广告盈利比 (profit/adCost)：
+2. 单品广告盈利比 (单品净利/adCost)：
    - < 0 (即利润为负)：不及格
    - 0-1：一般
    - 1-2：良好
