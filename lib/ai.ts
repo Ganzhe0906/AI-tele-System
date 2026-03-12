@@ -196,22 +196,29 @@ export async function resolveOperationsParams(
   });
 
   const shopsJson = JSON.stringify(shops, null, 2);
+  const validShopIds = shops.map((s) => s.shopId).join(", ");
   const prompt = `你是一个参数解析助手。用户说：「${extractedInfo}」
 
-可选店铺列表（必须从中选择最匹配的一个 shopId）：
+可选店铺列表（shopId 与 shopName 对照，必须从中选择）：
 ${shopsJson}
 
-任务：
-1. 从用户表述中推断月份，转换为 YYYY-MM 格式。若未提及月份，用当前月份 ${new Date().toISOString().slice(0, 7)}。
-2. 从上述店铺列表中选出与用户所指最接近的店铺，返回其 shopId（不是 shopName）。
+规则：
+1. 月份：从用户表述推断，转成 YYYY-MM。未提及则用 ${new Date().toISOString().slice(0, 7)}。
+2. 店铺：用户可能说简称（如 Miamax、MiaMax）或全名（如 MiaMaxPlayPicks）。你必须从列表中选择与用户所指最匹配的店铺，返回该店铺的 shopId 原值。
+3. shopId 必须是上述列表中的精确值之一（${validShopIds}），禁止自造或使用列表中不存在的值。
 
-仅返回 JSON：{"shopId":"xxx","month":"YYYY-MM"}`;
+仅返回 JSON：{"shopId":"列表中的精确shopId","month":"YYYY-MM"}`;
 
   try {
     const result = await model.generateContent(prompt);
     const parsed = JSON.parse(result.response.text());
     if (parsed?.shopId && parsed?.month) {
-      return { shopId: parsed.shopId, month: parsed.month };
+      // 校验 shopId 必须在列表中，防止 Gemini 幻觉
+      const validIds = new Set(shops.map((s) => s.shopId));
+      if (validIds.has(parsed.shopId)) {
+        return { shopId: parsed.shopId, month: parsed.month };
+      }
+      console.warn(`[AI] resolveOperationsParams 返回了非法 shopId: ${parsed.shopId}，不在列表中`);
     }
   } catch (err) {
     console.error("[AI] resolveOperationsParams 解析失败:", err);
@@ -220,8 +227,8 @@ ${shopsJson}
 }
 
 /**
- * 将财务 API 返回的 JSON 转化为自然语言业务总结
- * 用于轨道二（读操作）直出给用户
+ * 将财务 API 返回的 JSON 转化为自然语言业务报告
+ * 用于轨道二（读操作）直出给用户，含店铺维度分析与单品维度诊断
  */
 export async function summarizeFinanceContext(rawData: unknown): Promise<string> {
   if (!GEMINI_API_KEY) {
@@ -235,10 +242,38 @@ export async function summarizeFinanceContext(rawData: unknown): Promise<string>
     },
   });
 
-  const prompt = `你是一个财经助理。请根据以下财务 API 返回的 JSON 数据，用简洁自然的语言总结出关键信息，方便用户快速了解大盘/市场概况。
-- 突出重点数据（如涨跌、指数、重要事件）
-- 控制在一段话内，不超过 300 字
-- 使用中文
+  const prompt = `你是 TikTok 资深电商店铺财务分析师。请根据以下财务快照数据，输出一份结构化、专业的财务诊断报告。
+
+【重要规则】
+1. 数据中所有金额单位均为美元(USD)，输出时请使用「美元」或「$」，严禁使用「元」或「人民币」。
+2. 请直接输出报告正文，不要有“你好”、“这是您的报告”等寒暄语。
+3. 报告需分层次展现，结构清晰，可使用 Markdown 格式（如加粗、列表）。
+4. 整体字数控制在 400 字以内，语言精炼、直击痛点。
+
+【数据结构说明】
+- estimatedRevenue: 预估营收 (USD)
+- estimatedOrderProfit: 预估订单毛利 (USD)
+- adSpend: 广告消耗 (USD)
+- orderCount: 订单总数
+- estimatedNetProfit / finalNetProfit: 净利 (USD) 
+- exchangeRate: 当月汇率（如 7 表示 1 美元≈7 人民币）
+- profitBySku: 利润贡献 Top SKU，value 为美元
+- adCostBySku: 广告消耗 Top SKU，value 为美元
+- affiliateRankingData: 达人出单占比 (affiliateCount: 达人出单数, totalCount: 总订单, percentage: 达人占比)
+
+【报告结构要求】
+### 一、店铺整体表现
+1. 核心指标：列出营收、订单数、广告费、最终净利。
+2. 盈利诊断：明确指出本月是盈利还是亏损；计算全店 ROI (预估营收 / 广告消耗) 或利润率；简要分析问题可能出在哪里（如广告费占比过高、订单毛利不足等）。
+
+### 二、单品与广告分析
+1. 结合 \`profitBySku\` 与 \`adCostBySku\` 找出：
+   - 核心利润款（利润高、广告占比合理）。
+   - 亏损或低效款（广告费很高但利润贡献极低，甚至扣除广告后不盈利）。
+2. 给出针对单品广告投放的优化建议。
+
+### 三、达人建联情况 (若有 \`affiliateRankingData\`)
+简述哪些 SKU 严重依赖达人出单，或者整体的达人出单占比健康度。
 
 原始数据（JSON）：
 ${JSON.stringify(rawData)}
