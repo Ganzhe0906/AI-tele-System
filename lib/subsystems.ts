@@ -93,10 +93,11 @@ export async function processTodoQuery(): Promise<string> {
   const sortByPriority = (arr: any[]) =>
     [...arr].sort((a, b) => getOrder(a.priority) - getOrder(b.priority));
 
+  const priorityIcon: Record<string, string> = { A: "🔴", B: "🟡", C: "🟢" };
   const formatLine = (t: any) => {
-    const p = t.priority ? `[${t.priority}]` : "";
+    const icon = t.priority ? (priorityIcon[t.priority] || "⚪") + " " : "";
     const dateHint = t.dueDate ? ` (${t.dueDate.slice(0, 10)})` : "";
-    return `• ${p} ${t.text}${dateHint}`;
+    return `• ${icon}${t.text}${dateHint}`;
   };
 
   const sections: string[] = [];
