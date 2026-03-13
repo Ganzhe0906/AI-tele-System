@@ -213,11 +213,13 @@ async function processMessage(
         }
 
         // B. 快捷按钮绕过：底部键盘按钮文本直接判定意图，不走 Gemini
+        // 兼容有/无 emoji 的文本（部分客户端可能发送 "查询待办" 而非 "🔍 查询待办"）
+        const trimmed = (finalContent || "").trim();
         let intentResult: IntentResult;
-        if (finalContent === "🔍 查询待办") {
+        if (trimmed === "🔍 查询待办" || trimmed === "查询待办") {
           intentResult = { intent: "todo_query", extracted_info: "" };
           console.log(`[处理] 快捷按钮绕过 → todo_query`);
-        } else if (finalContent === "📊 查询财经") {
+        } else if (trimmed === "📊 查询财经" || trimmed === "查询财经") {
           intentResult = { intent: "finance", extracted_info: "" };
           console.log(`[处理] 快捷按钮绕过 → finance`);
         } else {
