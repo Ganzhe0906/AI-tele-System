@@ -46,7 +46,10 @@ export interface TelegramCallbackQuery {
 export type IntentType =
   | "finance"
   | "selection"
-  | "todo"
+  | "todo_query"
+  | "todo_add"
+  | "todo_toggle"
+  | "todo_delete"
   | "diary"
   | "knowledge"
   | "operations"

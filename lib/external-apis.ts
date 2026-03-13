@@ -93,6 +93,89 @@ export async function postTodoTask(text: string): Promise<ApiResult<unknown>> {
 }
 
 /**
+ * 待办 - 获取待办列表
+ * GET {DIARY_DOMAIN}/api/external/tasks
+ */
+export async function getTodoTasks(): Promise<ApiResult<any>> {
+  const baseUrl = process.env.DIARY_DOMAIN?.replace(/\/$/, "");
+  const apiKey = process.env.EXTERNAL_TASKS_API_KEY;
+
+  if (!baseUrl || !apiKey) {
+    return { success: false, error: "❌ 待办系统未配置，请联系管理员。" };
+  }
+
+  const url = `${baseUrl}/api/external/tasks`;
+  try {
+    const res = await fetchWithTimeout(url, { headers: { "x-api-key": apiKey } }, DEFAULT_TIMEOUT_MS);
+    if (!res.ok) {
+      console.error("[External] 待办查询失败:", res.status);
+      return { success: false, error: "❌ 待办接口无响应" };
+    }
+    const data = await res.json();
+    return { success: true, data };
+  } catch (e: any) {
+    console.error("[External] 待办查询异常:", e?.message || e);
+    return { success: false, error: "❌ 待办接口异常" };
+  }
+}
+
+/**
+ * 待办 - 切换完成状态
+ * PATCH {DIARY_DOMAIN}/api/external/tasks/:id/toggle
+ */
+export async function toggleTodoTask(id: string): Promise<ApiResult<any>> {
+  const baseUrl = process.env.DIARY_DOMAIN?.replace(/\/$/, "");
+  const apiKey = process.env.EXTERNAL_TASKS_API_KEY;
+
+  if (!baseUrl || !apiKey) return { success: false, error: "❌ 待办系统未配置" };
+
+  const url = `${baseUrl}/api/external/tasks/${id}/toggle`;
+  try {
+    const res = await fetchWithTimeout(
+      url,
+      { method: "PATCH", headers: { "x-api-key": apiKey } },
+      DEFAULT_TIMEOUT_MS
+    );
+    if (!res.ok) {
+      console.error("[External] 待办切换失败:", res.status);
+      return { success: false, error: "❌ 待办接口无响应" };
+    }
+    return { success: true, data: await res.json() };
+  } catch (e: any) {
+    console.error("[External] 待办切换异常:", e?.message || e);
+    return { success: false, error: "❌ 待办接口异常" };
+  }
+}
+
+/**
+ * 待办 - 删除任务
+ * DELETE {DIARY_DOMAIN}/api/external/tasks/:id
+ */
+export async function deleteTodoTask(id: string): Promise<ApiResult<any>> {
+  const baseUrl = process.env.DIARY_DOMAIN?.replace(/\/$/, "");
+  const apiKey = process.env.EXTERNAL_TASKS_API_KEY;
+
+  if (!baseUrl || !apiKey) return { success: false, error: "❌ 待办系统未配置" };
+
+  const url = `${baseUrl}/api/external/tasks/${id}`;
+  try {
+    const res = await fetchWithTimeout(
+      url,
+      { method: "DELETE", headers: { "x-api-key": apiKey } },
+      DEFAULT_TIMEOUT_MS
+    );
+    if (!res.ok) {
+      console.error("[External] 待办删除失败:", res.status);
+      return { success: false, error: "❌ 待办接口无响应" };
+    }
+    return { success: true, data: await res.json() };
+  } catch (e: any) {
+    console.error("[External] 待办删除异常:", e?.message || e);
+    return { success: false, error: "❌ 待办接口异常" };
+  }
+}
+
+/**
  * 日记 - 向日记网发送通知/记录
  * POST {DIARY_DOMAIN}/api/notifications/send
  */

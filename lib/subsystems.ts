@@ -1,6 +1,9 @@
 import { IntentResult } from "../types";
 import {
   postTodoTask,
+  getTodoTasks,
+  toggleTodoTask,
+  deleteTodoTask,
   postDiaryNotification,
   getFinanceShopList,
   getFinanceAiContext,
@@ -12,10 +15,10 @@ import { summarizeFinanceContext, resolveOperationsParams } from "./ai";
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** 需要用户点击确认才执行的意图（写操作） */
-const WRITE_INTENTS = new Set(["todo", "diary"]);
+const WRITE_INTENTS = new Set(["todo_add", "todo_toggle", "todo_delete", "diary"]);
 
 /** 读操作意图：直接调用外部 API 并返回结果，不弹确认按钮 */
-const READ_INTENTS = new Set(["finance", "operations"]);
+const READ_INTENTS = new Set(["finance", "operations", "todo_query"]);
 
 /**
  * 判断该意图是否需要弹出确认按钮
@@ -47,12 +50,63 @@ export async function processSelection(extractedInfo: string): Promise<string> {
   return `✅ 成功：🛍️ 选品内容已记录\n内容：[${extractedInfo}]`;
 }
 
-export async function processTodo(extractedInfo: string): Promise<string> {
+export async function processTodoQuery(): Promise<string> {
+  const result = await getTodoTasks();
+  if (!result.success) {
+    return result.error;
+  }
+  const tasks = result.data?.tasks || [];
+  if (tasks.length === 0) {
+    return "✅ 当前待办事项为空。";
+  }
+  const lines = tasks.map((t: any) => {
+    const status = t.completed ? "✅" : "⭕";
+    return `${status} [ID: ${t.id}] ${t.text}`;
+  });
+  return `📋 当前待办事项：\n\n${lines.join("\n")}`;
+}
+
+export async function processTodoAdd(extractedInfo: string): Promise<string> {
   const result = await postTodoTask(extractedInfo);
   if (!result.success) {
     return result.error;
   }
   return `✅ 成功：📝 待办事项已添加\n内容：${extractedInfo}`;
+}
+
+export async function processTodoToggle(extractedInfo: string): Promise<string> {
+  const queryResult = await getTodoTasks();
+  if (!queryResult.success) return queryResult.error;
+
+  const tasks = queryResult.data?.tasks || [];
+  const matched = tasks.find((t: any) => t.id === extractedInfo || t.text.includes(extractedInfo));
+
+  if (!matched) {
+    return `❌ 找不到匹配的待办事项：${extractedInfo}`;
+  }
+
+  const result = await toggleTodoTask(matched.id);
+  if (!result.success) return result.error;
+
+  const newStatus = !matched.completed ? "已完成" : "未恢复";
+  return `✅ 成功：待办事项 "${matched.text}" 状态已切换为 ${newStatus}。`;
+}
+
+export async function processTodoDelete(extractedInfo: string): Promise<string> {
+  const queryResult = await getTodoTasks();
+  if (!queryResult.success) return queryResult.error;
+
+  const tasks = queryResult.data?.tasks || [];
+  const matched = tasks.find((t: any) => t.id === extractedInfo || t.text.includes(extractedInfo));
+
+  if (!matched) {
+    return `❌ 找不到匹配的待办事项：${extractedInfo}`;
+  }
+
+  const result = await deleteTodoTask(matched.id);
+  if (!result.success) return result.error;
+
+  return `✅ 成功：待办事项 "${matched.text}" 已删除。`;
 }
 
 export async function processDiary(extractedInfo: string): Promise<string> {
@@ -102,7 +156,10 @@ export async function processOperations(extractedInfo: string): Promise<string> 
 const intentNames: Record<string, string> = {
   finance: "📊 财经资讯",
   selection: "🛍️ 跨境选品",
-  todo: "📝 待办事项",
+  todo_query: "🔍 查询待办",
+  todo_add: "📝 新增待办",
+  todo_toggle: "✅ 切换待办状态",
+  todo_delete: "🗑️ 删除待办",
   diary: "📔 个人日记",
   knowledge: "🧠 知识库",
   operations: "⚙️ 店铺运营与数据",
@@ -153,8 +210,14 @@ export async function executeIntentFunction(intent: string, extractedInfo: strin
       return await processFinance(extractedInfo);
     case "selection":
       return await processSelection(extractedInfo);
-    case "todo":
-      return await processTodo(extractedInfo);
+    case "todo_query":
+      return await processTodoQuery();
+    case "todo_add":
+      return await processTodoAdd(extractedInfo);
+    case "todo_toggle":
+      return await processTodoToggle(extractedInfo);
+    case "todo_delete":
+      return await processTodoDelete(extractedInfo);
     case "diary":
       return await processDiary(extractedInfo);
     case "knowledge":

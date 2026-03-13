@@ -22,11 +22,14 @@ export async function detectIntent(text: string): Promise<IntentResult> {
       intent: {
         type: SchemaType.STRING,
         description:
-          "The categorized intent. Must be one of: finance, selection, todo, diary, knowledge, operations",
+          "The categorized intent. Must be one of: finance, selection, todo_query, todo_add, todo_toggle, todo_delete, diary, knowledge, operations",
         enum: [
           "finance",
           "selection",
-          "todo",
+          "todo_query",
+          "todo_add",
+          "todo_toggle",
+          "todo_delete",
           "diary",
           "knowledge",
           "operations",
@@ -57,7 +60,10 @@ export async function detectIntent(text: string): Promise<IntentResult> {
   Intents:
   - finance: 财经资讯，如 Polymarket 赔率、股票基金投资、美股大盘等（不包含自家店铺的财务/利润数据）。
   - selection: 跨境电商选品，如抓取爆款玩具/节庆品数据、分析竞品利润、记录货品打分。
-  - todo: 待办事项，如提醒发货、补充仓库耗材。
+  - todo_query: 查询当前的待办事项列表。
+  - todo_add: 添加新的待办事项，如提醒发货、补充仓库耗材。
+  - todo_toggle: 切换某个待办事项的完成状态（从提取内容中获取想要操作的任务名称或特征）。
+  - todo_delete: 删除某个待办事项（从提取内容中获取想要操作的任务名称或特征）。
   - diary: 个人日记记录，情绪复盘，每日总结。
   - knowledge: 知识库管理，如分析微信跨境群聊干货、提炼小红书/抖音爆款运营思路。
   - operations: TikTok 电商店铺运营与数据查询，包含具体店铺（如 Miamax 等）的利润/财务数据大盘查询，以及多台手机群控调度、视频播放互动数据、达人建联管理等。
