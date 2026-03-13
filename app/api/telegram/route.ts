@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { waitUntil } from "@vercel/functions";
-import { TelegramUpdate } from "../../../types";
+import { TelegramUpdate, IntentResult } from "../../../types";
 import {
   sendMessage,
   editMessageText,
@@ -207,7 +207,7 @@ async function processMessage(
         }
 
         // B. 快捷按钮绕过：底部键盘按钮文本直接判定意图，不走 Gemini
-        let intentResult: { intent: string; extracted_info: string; usage?: { inputTokens?: number; outputTokens?: number } };
+        let intentResult: IntentResult;
         if (finalContent === "🔍 查询待办") {
           intentResult = { intent: "todo_query", extracted_info: "" };
           console.log(`[处理] 快捷按钮绕过 → todo_query`);
