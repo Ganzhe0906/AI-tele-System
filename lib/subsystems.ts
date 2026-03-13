@@ -76,7 +76,7 @@ export async function processTodoQuery(): Promise<string> {
   const getOrder = (p: string) => priorityOrder[p] ?? 3;
 
   const sections: string[] = [];
-  for (const [tag, tasks] of byTag) {
+  for (const [tag, tasks] of Array.from(byTag.entries())) {
     const sorted = [...tasks].sort((a, b) => getOrder(a.priority) - getOrder(b.priority));
     const lines = sorted.map((t: any) => {
       const p = t.priority ? `[${t.priority}]` : "";
