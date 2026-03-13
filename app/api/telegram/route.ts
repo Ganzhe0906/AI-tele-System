@@ -150,6 +150,12 @@ async function handleUpdate(update: TelegramUpdate) {
     const { chat, message_id, text, voice } = update.message;
     console.log(`[消息] 正在处理来自群组/私聊 ${chat.id} 的消息, 文本: ${text ? "有" : "无"}, 语音: ${voice ? "有" : "无"}`);
 
+    // /start：打开对话框时发送欢迎语 + 底部键盘，让用户一进来就看到按钮
+    if (text === "/start") {
+      await sendMessage(chat.id, "👋 欢迎使用！请选择下方按钮或输入内容。", undefined);
+      return;
+    }
+
     if (!text && !voice) {
         console.log(`[消息] 忽略: 无文本或语音内容`);
         return;
