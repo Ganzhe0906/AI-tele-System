@@ -44,6 +44,15 @@ export async function sendMessage(
 
   if (replyMarkup) {
     body.reply_markup = replyMarkup;
+  } else {
+    // 无显式 replyMarkup 时，注入默认常驻底部键盘（inline_keyboard 由调用方显式传入时不覆盖）
+    body.reply_markup = {
+      keyboard: [
+        [{ text: "🔍 查询待办" }, { text: "📊 查询财经" }],
+      ],
+      resize_keyboard: true,
+      persistent: true,
+    };
   }
   
   if (replyToMessageId) {

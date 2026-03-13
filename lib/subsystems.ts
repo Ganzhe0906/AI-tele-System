@@ -42,7 +42,7 @@ export function isReadIntent(intent: string): boolean {
 
 export async function processFinance(extractedInfo: string): Promise<string> {
   // 财经大盘尚未对接，暂用占位
-  return "✅ 成功：📊 财经数据已获取";
+  return "✅ 查询完成";
 }
 
 export async function processSelection(extractedInfo: string): Promise<string> {

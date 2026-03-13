@@ -206,10 +206,20 @@ async function processMessage(
           console.log(`[处理] 转写结果: "${finalContent.substring(0, 50)}..."`);
         }
 
-        // B. Gemini 意图路由
-        console.log(`[处理] 正在识别意图: "${finalContent.substring(0, 50)}..."`);
-        const intentResult = await detectIntent(finalContent);
-        console.log(`[处理] 识别到意图: ${intentResult.intent}`);
+        // B. 快捷按钮绕过：底部键盘按钮文本直接判定意图，不走 Gemini
+        let intentResult: { intent: string; extracted_info: string; usage?: { inputTokens?: number; outputTokens?: number } };
+        if (finalContent === "🔍 查询待办") {
+          intentResult = { intent: "todo_query", extracted_info: "" };
+          console.log(`[处理] 快捷按钮绕过 → todo_query`);
+        } else if (finalContent === "📊 查询财经") {
+          intentResult = { intent: "finance", extracted_info: "" };
+          console.log(`[处理] 快捷按钮绕过 → finance`);
+        } else {
+          // B. Gemini 意图路由
+          console.log(`[处理] 正在识别意图: "${finalContent.substring(0, 50)}..."`);
+          intentResult = await detectIntent(finalContent);
+          console.log(`[处理] 识别到意图: ${intentResult.intent}`);
+        }
 
         // Calculate Cost (Gemini 1.5 Flash pricing example: $0.075/1M input, $0.3/1M output)
         const inputTokens = intentResult.usage?.inputTokens || 0;
