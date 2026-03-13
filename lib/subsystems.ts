@@ -50,6 +50,20 @@ export async function processSelection(extractedInfo: string): Promise<string> {
   return `✅ 成功：🛍️ 选品内容已记录\n内容：[${extractedInfo}]`;
 }
 
+/** 上海时区当日日期 YYYY-MM-DD */
+function getTodayInShanghai(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const y = parts.find((p) => p.type === "year")!.value;
+  const m = parts.find((p) => p.type === "month")!.value;
+  const d = parts.find((p) => p.type === "day")!.value;
+  return `${y}-${m}-${d}`;
+}
+
 export async function processTodoQuery(): Promise<string> {
   const result = await getTodoTasks();
   if (!result.success) {
@@ -63,26 +77,38 @@ export async function processTodoQuery(): Promise<string> {
     return "✅ 当前没有未完成的待办事项。";
   }
 
-  // 按 tag 分组，无 tag 或空值归入「其他」
-  const byTag = new Map<string, typeof activeTasks>();
-  for (const t of activeTasks) {
-    const tag = (t.tag || "其他")?.trim() || "其他";
-    if (!byTag.has(tag)) byTag.set(tag, []);
-    byTag.get(tag)!.push(t);
-  }
+  const todayStr = getTodayInShanghai();
 
-  // 优先级顺序：A > B > C，用于排序
+  // 与前端一致：按 dueDate + completed 分四区，仅展示未完成三区
+  const todayTasks = activeTasks.filter(
+    (t: any) => t.dueDate && t.dueDate.slice(0, 10) <= todayStr
+  );
+  const cautionTasks = activeTasks.filter((t: any) => !t.dueDate?.trim());
+  const futureTasks = activeTasks.filter(
+    (t: any) => t.dueDate && t.dueDate.slice(0, 10) > todayStr
+  );
+
   const priorityOrder: Record<string, number> = { A: 0, B: 1, C: 2 };
   const getOrder = (p: string) => priorityOrder[p] ?? 3;
+  const sortByPriority = (arr: any[]) =>
+    [...arr].sort((a, b) => getOrder(a.priority) - getOrder(b.priority));
+
+  const formatLine = (t: any) => {
+    const p = t.priority ? `[${t.priority}]` : "";
+    const dateHint = t.dueDate ? ` (${t.dueDate.slice(0, 10)})` : "";
+    return `• ${p} ${t.text}${dateHint}`;
+  };
 
   const sections: string[] = [];
-  for (const [tag, tasks] of Array.from(byTag.entries())) {
-    const sorted = [...tasks].sort((a, b) => getOrder(a.priority) - getOrder(b.priority));
-    const lines = sorted.map((t: any) => {
-      const p = t.priority ? `[${t.priority}]` : "";
-      return `• ${p} ${t.text}`;
-    });
-    sections.push(`【${tag}】\n${lines.join("\n")}`);
+
+  if (todayTasks.length) {
+    sections.push(`【今日区】\n${sortByPriority(todayTasks).map(formatLine).join("\n")}`);
+  }
+  if (cautionTasks.length) {
+    sections.push(`【注意区】\n${sortByPriority(cautionTasks).map(formatLine).join("\n")}`);
+  }
+  if (futureTasks.length) {
+    sections.push(`【未来区】\n${sortByPriority(futureTasks).map(formatLine).join("\n")}`);
   }
 
   return `📋 未完成待办（共 ${activeTasks.length} 项）\n\n${sections.join("\n\n")}`;
