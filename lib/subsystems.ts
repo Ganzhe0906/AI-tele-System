@@ -55,15 +55,20 @@ export async function processTodoQuery(): Promise<string> {
   if (!result.success) {
     return result.error;
   }
-  const tasks = result.data?.tasks || [];
-  if (tasks.length === 0) {
-    return "✅ 当前待办事项为空。";
+  
+  const allTasks = result.data?.tasks || [];
+  // 仅保留未完成的待办事项
+  const activeTasks = allTasks.filter((t: any) => !t.completed);
+  
+  if (activeTasks.length === 0) {
+    return "✅ 当前没有未完成的待办事项。";
   }
-  const lines = tasks.map((t: any) => {
-    const status = t.completed ? "✅" : "⭕";
-    return `${status} [ID: ${t.id}] ${t.text}`;
+  
+  const lines = activeTasks.map((t: any) => {
+    return `⭕ [ID: ${t.id}] ${t.text}`;
   });
-  return `📋 当前待办事项：\n\n${lines.join("\n")}`;
+  
+  return `📋 当前未完成的待办事项（共 ${activeTasks.length} 项）：\n\n${lines.join("\n")}`;
 }
 
 export async function processTodoAdd(extractedInfo: string): Promise<string> {

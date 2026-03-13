@@ -258,7 +258,7 @@ async function processMessage(
             await editMessageText(
               chatId,
               messageId,
-              "❌ 财务网接口无响应，请稍后再试。"
+              "❌ 操作执行异常或返回内容过长，请稍后再试。"
             );
           }
         } else {
