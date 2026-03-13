@@ -55,20 +55,37 @@ export async function processTodoQuery(): Promise<string> {
   if (!result.success) {
     return result.error;
   }
-  
+
   const allTasks = result.data?.tasks || [];
-  // 仅保留未完成的待办事项
   const activeTasks = allTasks.filter((t: any) => !t.completed);
-  
+
   if (activeTasks.length === 0) {
     return "✅ 当前没有未完成的待办事项。";
   }
-  
-  const lines = activeTasks.map((t: any) => {
-    return `⭕ [ID: ${t.id}] ${t.text}`;
-  });
-  
-  return `📋 当前未完成的待办事项（共 ${activeTasks.length} 项）：\n\n${lines.join("\n")}`;
+
+  // 按 tag 分组，无 tag 或空值归入「其他」
+  const byTag = new Map<string, typeof activeTasks>();
+  for (const t of activeTasks) {
+    const tag = (t.tag || "其他")?.trim() || "其他";
+    if (!byTag.has(tag)) byTag.set(tag, []);
+    byTag.get(tag)!.push(t);
+  }
+
+  // 优先级顺序：A > B > C，用于排序
+  const priorityOrder: Record<string, number> = { A: 0, B: 1, C: 2 };
+  const getOrder = (p: string) => priorityOrder[p] ?? 3;
+
+  const sections: string[] = [];
+  for (const [tag, tasks] of byTag) {
+    const sorted = [...tasks].sort((a, b) => getOrder(a.priority) - getOrder(b.priority));
+    const lines = sorted.map((t: any) => {
+      const p = t.priority ? `[${t.priority}]` : "";
+      return `• ${p} ${t.text}`;
+    });
+    sections.push(`【${tag}】\n${lines.join("\n")}`);
+  }
+
+  return `📋 未完成待办（共 ${activeTasks.length} 项）\n\n${sections.join("\n\n")}`;
 }
 
 export async function processTodoAdd(extractedInfo: string): Promise<string> {
