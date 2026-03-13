@@ -165,7 +165,9 @@ async function handleUpdate(update: TelegramUpdate) {
     // 如果这一步失败（比如被用户拉黑），后续逻辑直接中断，不抛出异常给 Telegram
     let placeholderMsg;
     try {
-      placeholderMsg = await sendMessage(chat.id, "⏳ 意图解析中...", undefined, message_id);
+      // 传入一个空的 inline_keyboard 防止 sendMessage 自动注入 ReplyKeyboardMarkup
+      // 因为带有 ReplyKeyboardMarkup 的消息无法被 editMessageText 编辑
+      placeholderMsg = await sendMessage(chat.id, "⏳ 意图解析中...", { inline_keyboard: [] }, message_id);
     } catch (e) {
       console.error("[消息] 发送占位消息失败:", e);
       return; // 无法发送消息，终止任务
